@@ -22,24 +22,6 @@ s.waitForBoot{
 		Out.ar(0,sig)
 	}).add;
 
-	SynthDef(\reed, {
-		arg buf = 0, rate = 1, length=1;
-		var sig, env;
-
-		env = EnvGen.kr(Env([0,1,1,0],[0.2, length - 0.5, 0.3]), doneAction:2);
-		sig = PlayBuf.ar(2, buf, rate * BufRateScale.kr(buf));
-		sig = sig * env;
-
-		Out.ar(0,sig)
-	}).add;
-
-	~bufferFolder = PathName("/Users/mattiashallsten/Music/Ljud/Toner für Bläserquintett");
-	~buffers = [];
-	
-	~bufferFolder.entries.do{|path, i|
-		~buffers.add(Buffer.read(s, path.fullPath))
-	};
-
 	s.sync;
 
 	i = 0;
@@ -51,22 +33,26 @@ s.waitForBoot{
 		[1, 4/3, 11/8, 9/4],
 		[5/4, 11/8, 3/2, 15/8],
 
-	].scramble;
+	];
 
 	p = Pbind(
 		\instrument, \feedbackSin,
+		// duration is a sequence running from 0.3 to 4.0, and an added 6 second duration
 		\dur, Pseq((0.3,0.4..4.0) ++ 6.0,inf),
+		// \changeChord is a function to change the chord everytime the duration is 0.3, i.e.
+		// the start of the duration sequence.
 		\changeChord, Pfunc{|e|
 			if(e[\dur] == 0.3, {
-				
 				~chordIndex = ~chordIndex + 1;
 				~chordIndex = ~chordIndex % ~chords.size;
-				
-				
 			});
 
 			~chordIndex.postln
+			("Ratios: " + ~chords[~chordIndex].asString).postln;
 		},
+		// frequency is determined by the ratios in the current array from the two-dimensional
+		// ~chords. if the duration is 6.0, the Pbind generates a rest. this could probably be
+		// done easier with the \type keyword, going from \note to \rest.
 		\freq, Pfunc{|e|
 			var val;
 
@@ -78,10 +64,10 @@ s.waitForBoot{
 			}, { 100 * val
 			});
 		},
+		// legato is determined by the duration -- making sure that every event lasts 4 seconds.
 		\legato, Pfunc{|e|
 			4 / e[\dur]},
 		\feedbackModAm, Pkey(\dur) * 0.6,
-		//\feedbackModAm, Pwrand([0.2, Pwhite(0.9,1.6,1)],[4,1].normalizeSum, inf).trace(prefix:"feedbackModAm: "),
 		\whiteNoiseModAm, Pwhite(0.1,0.5),
 		\hpfCutoff, Pkey(\freq) * 4,
 		\lfoModAm, 0.001,
@@ -94,26 +80,5 @@ s.waitForBoot{
 		\chopAmpModRate, 14
 
 	).play;
-
-	Pbind(
-		\instrument, \reed,
-		\buf, Pseq(~buffers,inf),
-		\rate, Pfunc{
-			var val = ~chords[~chordIndex].choose * [1,0.5].choose;
-
-			// "reed!".postln;
-			
-			1.445 * val / 2;
-		},
-		\dur, Pwhite(5.0,8.0),
-		\length, Pfunc{|e|
-			var val = e[\buf].numFrames;
-
-			val = val / 44100;
-			val = val * e[\rate];
-
-			val
-		}
-	)
 }
 )
