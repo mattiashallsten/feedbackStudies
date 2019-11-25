@@ -1,6 +1,7 @@
 s.record(path: "~/Dropbox/Dokument/SuperCollider/feedbackStudies/feedbackStudy-3.wav");
 s.stopRecording
 (
+~numSpeakers = 16;
 s.waitForBoot{
 	SynthDef(\feedbackSin, {
 		|
@@ -16,15 +17,15 @@ s.waitForBoot{
 		
 		env = EnvGen.kr(Env.asr(atk, 1, rel), gate, doneAction:2);
 		local = DelayC.ar(
-			LocalIn.ar(10), 0.2, delayTime);
+			LocalIn.ar(~numSpeakers), 0.2, delayTime);
 		local = BHiPass.ar(local, hpfCutoff, hpfRez);
-		freqMod = LFNoise1.ar(0.5!20 * (local + 1)).range(1-lfoModAm,1+lfoModAm);
+		freqMod = LFNoise1.ar(0.5!~numSpeakers * (local + 1)).range(1-lfoModAm,1+lfoModAm);
 		freq = freq.lag(2) * pitchEnv;
 		modulatedFreq = freq * freqMod; 
 		sig = SinOsc.ar(modulatedFreq, Mix([
 			local * feedbackModAm,
 			SinOsc.ar(freq * modRatio.lag(5), local * feedbackSinAm.lag(2)) * sinModAm.lag(2),
-			BBandPass.ar(WhiteNoise.ar(1!10), (freq * 12).clip(20,18000), 0.1, whiteNoiseModAm)
+			BBandPass.ar(WhiteNoise.ar(1!~numSpeakers), (freq * 12).clip(20,18000), 0.1, whiteNoiseModAm)
 		]));
 		sig = sig * Pulse.kr(Demand.kr(trigger, 0, Dwhite(2,18)), 0.8).range(1 - chopAmpModAm, 1);
 		sig = sig * env * amp;
